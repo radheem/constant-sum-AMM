@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -11,11 +11,29 @@ contract AMM {
     uint256 public reserve1;
 
     uint256 public totalSupply;
+
     mapping(address => uint256) public balanceOf;
 
     constructor(address _token0, address _token1) {
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);
+    }
+
+    function _sqrt(uint256 y) private pure returns (uint256 z) {
+        if (y > 3) {
+            z = y;
+            uint256 x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            }
+        } else if (y != 0) {
+            z = 1;
+        }
+    }
+
+    function _min(uint256 x, uint256 y) private pure returns (uint256) {
+        return x <= y ? x : y;
     }
 
     function _mint(address _to, uint256 _amount) private {
@@ -32,6 +50,8 @@ contract AMM {
         reserve0 = _reserve0;
         reserve1 = _reserve1;
     }
+
+    event Swap(address indexed sender, uint256 amountIn, uint256 amountOut);
 
     function swap(address _tokenIn, uint256 _amountIn)
         external
@@ -61,7 +81,16 @@ contract AMM {
         _update(
             token0.balanceOf(address(this)), token1.balanceOf(address(this))
         );
+
+        emit Swap(msg.sender, _amountIn, amountOut);
+
     }
+
+    event AddLiquidity(
+        address indexed sender,
+        uint256 amount0,
+        uint256 amount1
+    );
 
     function addLiquidity(uint256 _amount0, uint256 _amount1)
         external
@@ -90,7 +119,15 @@ contract AMM {
         _update(
             token0.balanceOf(address(this)), token1.balanceOf(address(this))
         );
+
+        emit AddLiquidity(msg.sender, _amount0, _amount1);
     }
+
+    event RemoveLiquidity(
+        address indexed sender,
+        uint256 amount0,
+        uint256 amount1
+    );
 
     function removeLiquidity(uint256 _shares)
         external
@@ -108,23 +145,8 @@ contract AMM {
 
         token0.transfer(msg.sender, amount0);
         token1.transfer(msg.sender, amount1);
-    }
 
-    function _sqrt(uint256 y) private pure returns (uint256 z) {
-        if (y > 3) {
-            z = y;
-            uint256 x = y / 2 + 1;
-            while (x < z) {
-                z = x;
-                x = (y / x + x) / 2;
-            }
-        } else if (y != 0) {
-            z = 1;
-        }
-    }
-
-    function _min(uint256 x, uint256 y) private pure returns (uint256) {
-        return x <= y ? x : y;
+        emit RemoveLiquidity(msg.sender, amount0, amount1);
     }
 
     function getReserves()
@@ -148,24 +170,5 @@ contract AMM {
     }
 
 
-    function getAmountOut(address _tokenIn, uint256 _amountIn)
-        external
-        view
-        returns (uint256 amountOut)
-    {
-        require(
-            _tokenIn == address(token0) || _tokenIn == address(token1),
-            "invalid token"
-        );
-        require(_amountIn > 0, "amount in = 0");
 
-        bool isToken0 = _tokenIn == address(token0);
-        (uint256 reserveIn, uint256 reserveOut)
-        = isToken0
-            ? (reserve0, reserve1)
-            : (reserve1, reserve0);
-
-        amountOut =
-            (reserveOut * _amountIn) / (reserveIn + _amountIn);
-    }
 }
