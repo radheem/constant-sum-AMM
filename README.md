@@ -18,5 +18,7 @@ yarn hardhat node
 ``` 
 In another terminal run
 ```shell
-yarn hardhat ignition deploy ./ignition/modules/AMM.ts
+yarn hardhat ignition deploy ./ignition/modules/AMM.ts --network localhost
 ```
+
+copy the `./ignition/deployments/<name-of-your-chain>/deployed_addresses.json` to `./client/src` 
