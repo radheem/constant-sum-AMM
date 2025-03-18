@@ -40,7 +40,7 @@ describe("AMM", function () {
     await token1.connect(user1).approve(amm.getAddress(), hre.ethers.parseUnits("1000", 18));
   });
 
-  it("should add liquidity with intiali supply 0", async function () {
+  it("should add liquidity with intial supply 0", async function () {
     const amounIn = 1000
     const amount0 = hre.ethers.parseUnits(amounIn.toString(), 18);
     const amount1 = hre.ethers.parseUnits(amounIn.toString(), 18);
@@ -100,5 +100,28 @@ describe("AMM", function () {
     const reserves = await amm.getReserves();
     expect(reserves[0]).to.equal(0);
     expect(reserves[1]).to.equal(0);
+  });
+
+  it("should revert when swapping with zero liquidity", async function () {
+    const shares = await amm.balanceOf(await deployer.getAddress());
+    if (shares > 0n) {
+      await expect(amm.removeLiquidity(shares))
+      .to.emit(amm, "RemoveLiquidity")
+      .withArgs(await deployer.getAddress(), 0, 0);
+    }
+    expect(amm.connect(user1).swap(token0.getAddress(), 10 * TEN_TO_POWER_18))
+      .to.be.revertedWith("amount in = 0");
+  });
+
+  it("should revert when removing zero liquidity", async function () {
+    const shares = await amm.balanceOf(await deployer.getAddress());
+    if (shares > 0n) {
+      await expect(amm.removeLiquidity(shares))
+      .to.emit(amm, "RemoveLiquidity")
+      .withArgs(await deployer.getAddress(), 0, 0);
+    }
+    
+    await expect(amm.removeLiquidity(0))
+      .to.be.revertedWith("shares = 0");
   });
 });

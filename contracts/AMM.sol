@@ -71,7 +71,7 @@ contract AMM {
 
         tokenIn.transferFrom(msg.sender, address(this), _amountIn);
 
-        // 0.3% fee
+        // calculating amount to msg sender after 0.3% fee
         uint256 amountInWithFee = (_amountIn * 997) / 1000;
         amountOut =
             (reserveOut * amountInWithFee) / (reserveIn + amountInWithFee);
@@ -96,6 +96,7 @@ contract AMM {
         external
         returns (uint256 shares)
     {
+        require(_amount0 > 0 && _amount1 > 0, "Amounts must be greater than zero");
         token0.transferFrom(msg.sender, address(this), _amount0);
         token1.transferFrom(msg.sender, address(this), _amount1);
 
@@ -112,6 +113,7 @@ contract AMM {
                 (_amount0 * totalSupply) / reserve0,
                 (_amount1 * totalSupply) / reserve1
             );
+            require(shares <= totalSupply, "Shares exceed total supply");
         }
         require(shares > 0, "shares = 0");
         _mint(msg.sender, shares);
@@ -133,6 +135,7 @@ contract AMM {
         external
         returns (uint256 amount0, uint256 amount1)
     {
+        require(_shares > 0, "shares = 0");
         uint256 bal0 = token0.balanceOf(address(this));
         uint256 bal1 = token1.balanceOf(address(this));
 
