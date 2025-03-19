@@ -16,9 +16,29 @@ yarn hardhat test
 ```shell
 yarn hardhat node
 ``` 
-In another terminal run
-```shell
-yarn hardhat ignition deploy ./ignition/modules/AMM.ts --network localhost
-```
-
-copy the `./ignition/deployments/<name-of-your-chain>/deployed_addresses.json` to `./client/src` 
+### Setting up 
+1. Deploying contracts 
+    ```shell
+    yarn deploy_local
+    ```
+2. Copy the `./ignition/deployments/<name-of-your-chain>/deployed_addresses.json` to `./client/src`
+3. Fund the account  
+    ```shell
+    yarn fund 
+    ```
+4. Approve allowance for AMM
+    ```shell
+    yarn allowance
+    ```
+5. Add initial liquidity
+    ```shell
+    yarn add_liquidity
+    ```
+6. Setup client, cd into client forlder, run
+    ```shell
+    yarn 
+    ```
+7. Come back to root and start client 
+    ```shell
+    yarn start_client 
+    ```

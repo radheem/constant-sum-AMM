@@ -28,13 +28,17 @@
   },
   "scripts": {
     "compile": "hardhat compile",
+    "deploy_local": "yarn hardhat ignition deploy ./ignition/modules/AMM.ts --network localhost",
     "test": "hardhat test",
     "typechain": "hardhat typechain",
     "coverage": "hardhat coverage",
     "verify": "hardhat verify",
     "address_check": "ts-node ./scripts/addressCheck.ts",
     "allowance": "ts-node ./scripts/allowanceAMM.ts",
+    "fund": "ts-node ./scripts/deposit.ts",
+    "add_liquidity": "ts-node ./scripts/addLiquidity.ts",
     "start_client":"cd client && yarn start"
+
   },
   "dependencies": {
     "@metamask/sdk-react": "^0.30.0",

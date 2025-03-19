@@ -62,13 +62,16 @@ contract AMM {
             "invalid token"
         );
         require(_amountIn > 0, "amount in = 0");
-
         bool isToken0 = _tokenIn == address(token0);
         (IERC20 tokenIn, IERC20 tokenOut, uint256 reserveIn, uint256 reserveOut)
         = isToken0
             ? (token0, token1, reserve0, reserve1)
             : (token1, token0, reserve1, reserve0);
-
+        require(reserveIn > 0 && reserveOut > 0, "Reserve0 or reserve1 = 0");
+        require(
+            _amountIn < reserveIn && _amountIn < reserveOut,
+            "Amount in too high"
+        );
         tokenIn.transferFrom(msg.sender, address(this), _amountIn);
 
         // calculating amount to msg sender after 0.3% fee
