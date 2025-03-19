@@ -1,8 +1,6 @@
 import { ethers, Signer } from "ethers";
-import hre from "hardhat";
-import contractAddresses from '../client/src/deployed_addresses.json';  
+import contractAddresses from '../ignition/deployments/chain-31337/deployed_addresses.json';  
 import { AMM as AMMContract, AMM__factory } from '../typechain-types';
-const deployerAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
 
 
