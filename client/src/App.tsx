@@ -3,305 +3,135 @@ import { ethers } from 'ethers';
 
 import './App.css';
 
-import FOOBA from './contractABIs/FOOBA.json';
-import AUSD from './contractABIs/AUSD.json';
-import AMM from './contractABIs/AMM.json';
 import contractAddresses from './deployed_addresses.json';  
-import { WalletCard } from './walletCard';
+import { AUSD__factory } from './typechain-types';
+import { FOOBA__factory } from './typechain-types';
+import { AMM__factory } from './typechain-types';
 
 const App: React.FC = () => {
-  const [provider, setProvider] = useState<ethers.JsonRpcProvider | ethers.BrowserProvider | null>(null);
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [currency, setCurrency] = useState('AUSD');
   const [amount, setAmount] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferAddress, setTransferAddress] = useState('');
   const [account, setAccount] = useState<string | null>(null);
   const [balance, setBalance] = useState<string | null>(null);
-  const [foobaContractAddress, setFoobaContractAddress] = useState<string | null>(null);
-  const [ausdContractAddress, setAusdContractAddress] = useState<string | null>(null);
-  const [ammContractAddress, setAmmContractAddress] = useState<string | null>(null);
-  const [ammFoobaBalance, setAmmFoobaBalance] = useState<string | null>(null);
-  const [ammAusdBalance, setAmmAusdBalance] = useState<string | null>(null);
   const [userFoobaBalance, setUserFoobaBalance] = useState<string | null>(null);
   const [userAusdBalance, setUserAusdBalance] = useState<string | null>(null);
+  const [ammFoobaBalance, setAmmFoobaBalance] = useState<string | null>(null);
+  const [ammAusdBalance, setAmmAusdBalance] = useState<string | null>(null);
   useEffect(() => {
-          
     const connectMetaMask = async () => {
+      if (!window.ethereum) {
+        alert("MetaMask is not installed. Please install MetaMask and try again.");
+        return;
+      }
       try {
-        if (!window.ethereum) {
-          alert("MetaMask is not installed. Please install MetaMask and try again.");
-          return;
-        }
-  
-        // Request account access
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         const metaMaskProvider = new ethers.BrowserProvider(window.ethereum);
-        
-        // Set the provider state
         setProvider(metaMaskProvider);
-        setAmmContractAddress(contractAddresses['AMM#AMM']);
-        setAusdContractAddress(contractAddresses['AMM#AUSD']);
-        setFoobaContractAddress(contractAddresses['AMM#FOOBA']);
-        // Get accounts from MetaMask
         const signer = await metaMaskProvider.getSigner();
         const accountAddress = await signer.getAddress();
         setAccount(accountAddress);
-        // Fetch the user's balance in Ether
         const balanceInWei = await metaMaskProvider.getBalance(accountAddress);
-        const balanceInEther = ethers.formatEther(balanceInWei);
-        setBalance(balanceInEther);
-        
-        refreshBalances();
+        setBalance(ethers.formatEther(balanceInWei));
+        await refreshBalances();
       } catch (error) {
         console.error("Error connecting to MetaMask:", error);
       }
     };
-  
-    // Listen for account changes and update the account address and balance
-    const handleAccountsChanged = async (accounts: string[]) => {
-      if (accounts.length === 0) {
-        alert("Please connect to MetaMask.");
-      } else {
-        const newAccount = accounts[0];
-        setAccount(newAccount);
-  
-        // Fetch the new account's balance in Ether
-        const balanceInWei = await provider?.getBalance(newAccount);
-        const balanceInEther = ethers.formatEther(balanceInWei || 0);
-        setBalance(balanceInEther);
-  
-        // Update contract connections for the new account
-        const signer = await provider?.getSigner(newAccount);
-        if (signer) {
-          const foobaConn = new ethers.Contract(contractAddresses['AMM#FOOBA'], FOOBA.abi, signer);
-          const ausdConn = new ethers.Contract(contractAddresses['AMM#AUSD'], AUSD.abi, signer);
-  
-          const userFoobaBalance = await foobaConn.balanceOf(newAccount);
-          const userAusdBalance = await ausdConn.balanceOf(newAccount);
-  
-          setUserAusdBalance(userAusdBalance.toString());
-          setUserFoobaBalance(userFoobaBalance.toString());
-        }
-      }
-    };
-  
-    connectMetaMask(); // Connect to MetaMask on component mount
-  
+    connectMetaMask();
   }, []);
-  
-  
-  const refreshBalances= async () => {
+
+  const refreshBalances = async () => {
+    if (!provider || !account) return;
     try {
-      if (!provider || !account) {
-        throw new Error("Provider or account not available");
-      }
-      const signer = await provider.getSigner(account);    
-      
-      const foobaConn = new ethers.Contract(contractAddresses['AMM#FOOBA'], FOOBA.abi, signer);
-      const foobaBalance = await foobaConn.balanceOf(account);
-      console.log("user Fooba balance:", foobaBalance.toString());
-      setUserFoobaBalance(foobaBalance.toString());
-      
-      const ausdConn = new ethers.Contract(contractAddresses['AMM#AUSD'], AUSD.abi, signer);
-      const ausdBalance = await ausdConn.balanceOf(account);
-      console.log("user Ausd balance:", ausdBalance.toString());
-      setUserAusdBalance(ausdBalance.toString());
-
-      const ammConn = new ethers.Contract(contractAddresses['AMM#AMM'], AMM.abi, signer);
-      const ammBalances = await ammConn.getBalance();
-      setAmmAusdBalance(ammBalances[0].toString());
-      setAmmFoobaBalance(ammBalances[1].toString());
-
+      const signer = await provider.getSigner(account);
+      const foobaConn = FOOBA__factory.connect(contractAddresses['AMM#FOOBA'], signer);
+      const ausdConn = AUSD__factory.connect(contractAddresses['AMM#AUSD'], signer);
+      setUserFoobaBalance(ethers.formatUnits(await foobaConn.balanceOf(account), 18));
+      setUserAusdBalance(ethers.formatUnits(await ausdConn.balanceOf(account), 18));
+      const ammConn = AMM__factory.connect(contractAddresses['AMM#AMM'], signer);
+      const balances = await ammConn.getBalance();
+      setAmmFoobaBalance(ethers.formatUnits(balances[1], 18));
+      setAmmAusdBalance(ethers.formatUnits(balances[0], 18));
     } catch (error) {
-      console.error('Error refreshing balance:', error);
+      console.error("Error refreshing balances:", error);
     }
   };
-  const handleCurrencyChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCurrency(e.target.value);
 
-    if (provider && account && ausdContractAddress && foobaContractAddress) {
-      // Refresh the balances for the newly selected currency
+  const transferToken = async (isFooba: boolean) => {
+    if (!provider || !account || !transferAmount || !transferAddress) return;
+    try {
+      const signer = await provider.getSigner(account);
+      const tokenContract = isFooba
+        ? FOOBA__factory.connect(contractAddresses['AMM#FOOBA'], signer)
+        : AUSD__factory.connect(contractAddresses['AMM#AUSD'], signer);
+      const tx = await tokenContract.transfer(transferAddress, ethers.parseUnits(transferAmount, 18));
+      await tx.wait();
       await refreshBalances();
-    }
-
-  };
-  // Handle "Go" button click
-  const handleGoClick = async () => {
-    // Ensure the amount is a valid number
-    // If the selected currency is AUSD, call the AUSD contract
-    // call AMM contract swap function, pass AUSD contract address and 
-    if (!provider || !account) {
-      throw new Error("Provider or account not available");
-    }
-    if (!amount || amount === '0') {
-      alert("Please enter an amount.");
-      return;
-    }
-    if (currency === 'FOOBA') {
-      try {
-        if (!foobaContractAddress ) {
-          throw new Error("FOOBA contract address not available");
-          
-        }
-        const foobaContract = new ethers.Contract(foobaContractAddress, FOOBA.abi, await provider.getSigner());
-        if (foobaContract) {
-          const ammConn = new ethers.Contract(contractAddresses['AMM#AMM'], AMM.abi, await provider.getSigner());
-          const resp = await ammConn.swap(foobaContract, (Number(amount)*10**18).toString());
-          console.log("Swap response:", resp);  
-          
-        } else {
-          alert("Contract not connected!");
-        }
-      } catch (error) {
-        console.error("Error interacting with contract:", error);
-      }
-    } else if(currency === 'AUSD') {
-      try {
-        if (!ausdContractAddress) {
-          throw new Error("AUSD contract address not available");
-        }
-        const ausdContract = new ethers.Contract(ausdContractAddress, AUSD.abi, await provider.getSigner());
-        if (ausdContract) {
-          const resp = await ausdContract.transfer(contractAddresses['AMM#AMM'], (Number(amount)*10**18).toString());
-          console.log("Transfer response:", resp);
-        } else {
-          alert("Contract not connected!");
-        }
-      } catch (error) {
-        console.error("Error interacting with contract:", error);
-      }
-    }
-    else {
-      alert(`Currency: ${currency}, Amount: ${amount}`);
+    } catch (error) {
+      console.error("Error transferring token:", error);
     }
   };
 
-  const handleReefreshBalanceClick = async () => {
-    await refreshBalances();
+  const swapToken = async () => {
+    if (!provider || !account || !amount) return;
+    try {
+      const signer = await provider.getSigner(account);
+      const ammContract = AMM__factory.connect(contractAddresses['AMM#AMM'], signer);
+      const tokenContract = currency === 'FOOBA' ? contractAddresses['AMM#FOOBA'] : contractAddresses['AMM#AUSD'];
+      const tx = await ammContract.swap(tokenContract, ethers.parseUnits(amount, 18));
+      await tx.wait();
+      await refreshBalances();
+    } catch (error) {
+      console.error("Error swapping token:", error);
+    }
   };
 
-  // return (
-  //   <div className="App">
-  //     <header className="App-header">
-  //       <h1>Currency Converter</h1>
-
-  //       {account ? (
-  //         <div>
-  //           <p>Connected Account: {account}</p>
-  //           <p>ETH Balance: {balance ? Number(balance).toFixed(3) : '0.000'} ETH</p>
-  //         </div>
-  //       ) : (
-  //         <p>Connecting to local EVM chain...</p>
-  //       )}
-
-  //       <label>
-  //         Select Currency:
-  //         <select
-  //           value={currency}
-  //           onChange={handleCurrencyChange}
-  //           className="App-select"
-  //         >
-  //           <option value="AUSD">AUSD</option>
-  //           <option value="FOOBA">FOOBA</option>
-  //         </select>
-  //       </label>
-  //       <label>User Balance</label>
-  //       <label>
-  //         FOOBA Balance: {userFoobaBalance ? Number(userFoobaBalance) / 10 ** 18 : '0'}
-  //       </label>
-  //       <label>
-  //         AUSD Balance: {userAusdBalance ? Number(userAusdBalance) / 10 ** 18 : '0'}
-  //       </label>
-  //       <label>AMM Balance</label>
-  //       <label>
-  //         FOOBA Balance: {ammFoobaBalance ? Number(ammFoobaBalance) / 10 ** 18 : '0'}
-  //       </label>
-  //       <label>
-  //         AUSD Balance: {ammAusdBalance ? Number(ammAusdBalance) / 10 ** 18 : '0'}
-  //       </label>
-  //       <button onClick={handleReefreshBalanceClick} className="App-button">
-  //         Refresh Balance
-  //       </button>
-  //       <label>
-  //         Enter Amount:
-  //         <input
-  //           type="number"
-  //           value={amount}
-  //           onChange={(e) => setAmount(e.target.value)}
-  //           className="App-input"
-  //           placeholder="Enter amount"
-  //           step="0.01"
-  //         />
-  //       </label>
-
-  //       <button onClick={handleGoClick} className="App-button">
-  //         Go
-  //       </button>
-
-  //       {/* {foobaContract && contractAddress && (
-  //         <p>FOOBA Contract connected at: {contractAddress}</p>
-  //       )} */}
-  //     </header>
-  //   </div>
-  // );
   return (
     <div className="App">
       <header className="App-header">
         <h1>Currency Converter</h1>
-        <h2>Account Information</h2>
-        {/* Section 1: Balances and Account Information */}
-        <section className="App-section">
-          {account ? (
-            <div>
-              <p>Connected Account: {account}</p>
-              <p>ETH Balance: {balance ? Number(balance).toFixed(3) : '0.000'} ETH</p>
-            </div>
-          ) : (
-            <p>Connecting to local EVM chain...</p>
-          )}
-          
-          <div className="App-balance">
-            <h3>User Balances</h3>
-            <p>FOOBA Balance: {userFoobaBalance ? (Number(userFoobaBalance) / 10 ** 18).toFixed(3) : '0.000'}</p>
-            <p>AUSD Balance: {userAusdBalance ? (Number(userAusdBalance) / 10 ** 18).toFixed(3) : '0.000'}</p>
+        <div>
+          <h3>AMM Balances</h3>
+          <p>FOOBA: {Number(ammFoobaBalance).toFixed(3) || '0.000'}</p>
+          <p>AUSD: {Number(ammAusdBalance).toFixed(3) || '0.000'}</p>
+        </div>
+        <div>
+          <h3>User Balances</h3>
+          <p>Account: {account}</p>
+          <p>ETH Balance: {Number(balance).toFixed(3) || '0.000'} ETH</p>
+        </div>
+        <div>
+          <p>FOOBA: {Number(userFoobaBalance).toFixed(3) || '0.000'}</p>
+          <p>AUSD: {Number(userAusdBalance).toFixed(3) || '0.000'}</p>
+        </div>
+        <button onClick={refreshBalances}>Refresh Balances</button>
+        <div>
+          <h2>Swap</h2>
+          <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+            <option value="AUSD">AUSD</option>
+            <option value="FOOBA">FOOBA</option>
+          </select>
+          <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <button onClick={swapToken}>Swap</button>
+        </div>
+        <div>
+          <h2>Transfer</h2>
+          <label>Token: </label>
+          <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+            <option value="AUSD">AUSD</option>
+            <option value="FOOBA">FOOBA</option>
+          </select>
+          <div>
+            <label> Recipient Address: </label>
+            <input type="text" value={transferAddress} onChange={(e) => setTransferAddress(e.target.value)} placeholder="Recipient Address" />
+            <label>  Amount: </label>
+            <input type="number" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
+            <button onClick={() => transferToken(currency === 'FOOBA')}>Transfer</button>
           </div>
-          <div className="App-balance">
-            <h3>AMM Balances</h3>
-            <p>FOOBA Balance: {ammFoobaBalance ? (Number(ammFoobaBalance) / 10 ** 18).toFixed(3) : '0.000'}</p>
-            <p>AUSD Balance: {ammAusdBalance ? (Number(ammAusdBalance) / 10 ** 18).toFixed(3) : '0.000'}</p>
-          </div>
-          <button onClick={handleReefreshBalanceClick} className="App-button">
-            Refresh Balances
-          </button>
-        </section>
-  
-        {/* Section 2: Perform Transfers */}
-        <section className="App-section">
-          <h2>Perform Transfer</h2>
-          <label>
-            Select Input Currency:
-            <select
-              value={currency}
-              onChange={handleCurrencyChange}
-              className="App-select"
-            >
-              <option value="AUSD">AUSD</option>
-              <option value="FOOBA">FOOBA</option>
-            </select>
-          </label>
-          <label>
-            Enter Amount:
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="App-input"
-              placeholder="Enter amount"
-              step="0.01"
-            />
-          </label>
-          <button onClick={handleGoClick} className="App-button">
-            Swap
-          </button>
-        </section>
+        </div>
       </header>
     </div>
   );
