@@ -170,7 +170,7 @@ describe.only("AMM", function () {
   
     // Try swapping with zero liquidity
     await expect(amm.connect(user1).swap(token0.getAddress(), 1000))
-      .to.be.revertedWith("amount in = 0");
+      .to.be.revertedWith("Reserve0 or reserve1 = 0");
   });
   
   it("should revert on remove liquidity with zero liquidity", async function () {
